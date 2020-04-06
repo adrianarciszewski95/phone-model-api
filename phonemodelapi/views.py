@@ -1,8 +1,11 @@
 from django.contrib.auth.models import User, Group
 from rest_framework import viewsets, filters
+from django_filters.rest_framework import DjangoFilterBackend
+
 from .serializers import PhoneImageSerializer, BrandSerializer, ColorSerializer, OperatingSystemSerializer, \
     OSVersionSerializer, ChipsetSerializer, QuickChargeSerializer, PhoneSerializer, RatingSerializer
 from .models import PhoneImage, Brand, Color, OperatingSystem, OSVersion, Chipset, QuickCharge, Phone, Rating
+
 
 
 # class UserViewSet(viewsets.ModelViewSet):
@@ -52,7 +55,8 @@ class QuickChargeViewSet(viewsets.ModelViewSet):
 class PhoneViewSet(viewsets.ModelViewSet):
     queryset = Phone.objects.all()
     serializer_class = PhoneSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['brand', 'year', 'display_diagonal', 'operating_system']
     search_fields = ['name', 'brand__name']
     ordering_fields = ['brand__name', 'year']
     ordering = ['brand__name', 'name']
