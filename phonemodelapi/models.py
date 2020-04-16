@@ -151,6 +151,7 @@ class Rating(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     stars = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     opinion = models.TextField(null=True, blank=True, max_length=500)
+    date = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ['user', 'phone']
