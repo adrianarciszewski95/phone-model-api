@@ -1,6 +1,44 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.dispatch import receiver
+from django.db.models.signals import post_save
+from rest_framework.authtoken.models import Token
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django_countries.fields import CountryField
+
+
+@receiver(post_save, sender=User)
+def create_auth_token(sender, instance=None, created=False, **kwargs):
+    if created:
+        Token.objects.create(user=instance)
+
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, unique=True)
+    photo = models.ImageField(null=True, blank=True, upload_to='photos of users')
+    favourite_brand = models.CharField(max_length=15, null=True, blank=True)
+    favourite_phone = models.CharField(max_length=20, null=True, blank=True)
+    address = models.CharField(max_length=50, null=True, blank=True)
+    city = models.CharField(max_length=20, null=True, blank=True)
+    country = CountryField()
+
+    def number_of_ratings(self):
+        ratings = Rating.objects.filter(user=self.user)
+        return len(ratings)
+
+    def __str__(self):
+        return self.user.username
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    instance.profile.save()
 
 
 class PhoneImage(models.Model):
@@ -19,21 +57,20 @@ class Brand(models.Model):
         return len(phones)
 
 
-class OperatingSystem(models.Model):
-    name = models.CharField(max_length=20)
-
-    def __str__(self):
-        return self.name
-
-
 class Phone(models.Model):
     name = models.CharField(max_length=30)
     main_photo = models.ImageField(null=True, blank=True, upload_to='phone images')
     phone_images = models.ManyToManyField(PhoneImage)
-    brand = models.ForeignKey(Brand, on_delete=models.CASCADE)
+    brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='phones')
     year = models.IntegerField(null=True, blank=True)
     display_diagonal = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
-    operating_system = models.ForeignKey(OperatingSystem, on_delete=models.CASCADE)
+    OPERATING_SYSTEMS = [
+        ('Android', 'Android'),
+        ('iOS', 'iOS'),
+        ('Windows Phone', 'Windows Phone'),
+        ('other', 'other')
+    ]
+    operating_system = models.CharField(choices=OPERATING_SYSTEMS, max_length=20)
     processor_clock = models.DecimalField(decimal_places=2, max_digits=5, null=True, blank=True)
     processor_cores = models.IntegerField(null=True, blank=True)
     internal_memory = models.IntegerField(null=True, blank=True)
@@ -55,7 +92,22 @@ class Phone(models.Model):
     dual_sim = models.BooleanField()
     e_sim = models.BooleanField()
     audio_jack = models.BooleanField()
-    bluetooth_version = models.DecimalField(decimal_places=1, max_digits=3, null=True, blank=True)
+    BLUETOOTH_VERSIONS = [
+        ('unknown', 'unknown'
+                    ),
+        ('Bluetooth 1.0', 'Bluetooth 1.0'),
+        ('Bluetooth 1.1', 'Bluetooth 1.1'),
+        ('Bluetooth 1.2', 'Bluetooth 1.2'),
+        ('Bluetooth 2.0', 'Bluetooth 2.0'),
+        ('Bluetooth 2.1', 'Bluetooth 2.1'),
+        ('Bluetooth 3.0', 'Bluetooth 3.0'),
+        ('Bluetooth 3.1', 'Bluetooth 3.1'),
+        ('Bluetooth 4.0', 'Bluetooth 4.0'),
+        ('Bluetooth 4.1', 'Bluetooth 4.1'),
+        ('Bluetooth 4.2', 'Bluetooth 4.2'),
+        ('Bluetooth 5.0', 'Bluetooth 5.0')
+    ]
+    bluetooth_version = models.CharField(choices=BLUETOOTH_VERSIONS, max_length=20)
     FINGERPRINT_TYPES = [
         ('no', 'no'),
         ('front-mounted', 'front-mounted'),
@@ -89,7 +141,7 @@ class Phone(models.Model):
         ratings = Rating.objects.filter(phone=self)
         sum = 0
         for rating in ratings:
-            sum += rating.start
+            sum += rating.stars
         number_of_ratings = self.number_of_ratings()
         return sum/number_of_ratings if number_of_ratings > 0 else 0
 

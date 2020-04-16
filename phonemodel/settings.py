@@ -38,9 +38,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'phonemodelapi.apps.PhonemodelapiConfig',
-    'django_filters',
     'rest_framework',
-    'corsheaders'
+    'django_filters',
+    'django_countries',
+    'rest_framework.authtoken',
 ]
 
 MIDDLEWARE = [
@@ -51,11 +52,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware'
-]
-
-CORS_ORIGIN_WHITELIST = [
-    "http://localhost:3000",
 ]
 
 ROOT_URLCONF = 'phonemodel.urls'
@@ -76,6 +72,7 @@ TEMPLATES = [
         },
     },
 ]
+
 
 WSGI_APPLICATION = 'phonemodel.wsgi.application'
 
@@ -109,9 +106,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-REST_FRAMEWORK = {
-    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend']
-}
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/
