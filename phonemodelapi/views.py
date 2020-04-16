@@ -5,8 +5,8 @@ from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.authentication import TokenAuthentication
 from .permissions import IsAdminOrReadOnly
-from .serializers import UserSerializer, PhoneSerializer, PhoneBasicSerializer, ProfileSerializer
-from .models import Phone, Profile
+from .serializers import UserSerializer, PhoneSerializer, PhoneBasicSerializer, ProfileSerializer, RatingSerializer
+from .models import Phone, Profile, Rating
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as filters
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -97,6 +97,6 @@ class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
 
-# class RatingViewSet(viewsets.ModelViewSet):
-#     queryset = Rating.objects.all()
-#     serializer_class = RatingSerializer
+class RatingViewSet(viewsets.ModelViewSet):
+    queryset = Rating.objects.all()
+    serializer_class = RatingSerializer

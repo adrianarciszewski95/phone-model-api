@@ -14,7 +14,15 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
         return user
 
 
+class RatingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Rating
+        fields = ['id', 'phone', 'user', 'stars', 'opinion', 'date']
+
+
 class PhoneSerializer(serializers.ModelSerializer):
+    ratings = RatingSerializer(many=True)
+
     class Meta:
         model = Phone
         fields = ['id', 'name', 'brand', 'name_with_brand', 'year', 'main_photo', 'phone_images', 'display_diagonal',
@@ -22,7 +30,8 @@ class PhoneSerializer(serializers.ModelSerializer):
                   'memory_card_slot', 'battery_capacity', 'battery_removable', 'quick_battery_charging',
                   'wireless_battery_charging', 'back_camera_resolution', 'back_camera_amount',
                   'front_camera_resolution', 'sim_size', 'dual_sim', 'e_sim', 'audio_jack', 'bluetooth_version',
-                  'fingerprint', 'nfc', 'usb_type', 'additional_information', 'number_of_ratings', 'average_rating']
+                  'fingerprint', 'nfc', 'usb_type', 'additional_information', 'ratings', 'number_of_ratings',
+                  'average_rating']
 
 
 class PhoneBasicSerializer(serializers.ModelSerializer):
@@ -54,8 +63,5 @@ class ProfileSerializer(serializers.ModelSerializer):
 #         fields = ['id', 'name', 'logo', 'number_of_phones', 'phones']
 #
 #
-# class RatingSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Rating
-#         fields = ['id', 'phone', 'user', 'stars', 'opinion']
+
 

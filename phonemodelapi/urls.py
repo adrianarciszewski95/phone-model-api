@@ -9,7 +9,7 @@ router.register(r'users', views.UserViewSet)
 
 router.register(r'phones', views.PhoneViewSet)
 router.register(r'profiles', views.ProfileViewSet)
-# router.register(r'ratings', views.RatingViewSet)
+router.register(r'ratings', views.RatingViewSet)
 
 
 urlpatterns = [

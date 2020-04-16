@@ -147,7 +147,7 @@ class Phone(models.Model):
 
 
 class Rating(models.Model):
-    phone = models.ForeignKey(Phone, on_delete=models.CASCADE)
+    phone = models.ForeignKey(Phone, on_delete=models.CASCADE, related_name='ratings')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     stars = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     opinion = models.TextField(null=True, blank=True, max_length=500)
