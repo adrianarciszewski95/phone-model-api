@@ -10,7 +10,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as filters
 from django.http import HttpResponseNotAllowed
 from rest_framework import permissions
-from .permissions import IsAdminOrReadOnly, IsAuthorOrReadOnly
+from .permissions import IsAdminOrReadOnly
 from .serializers import PhoneSerializer, PhoneBasicSerializer, ProfileSerializer, RatingSerializer,  BrandSerializer, \
     UserSerializer
 from .models import Phone, Profile, Rating, Brand
@@ -69,8 +69,8 @@ class PhoneViewSet(viewsets.ModelViewSet):
     ordering_fields = ['brand__name', 'name', 'year']
     ordering = ['brand__name', 'name']
     pagination_class = PhoneSetPagination
-    # authentication_classes = (TokenAuthentication, )
-    # permission_classes = (IsAdminOrReadOnly,)
+    authentication_classes = (TokenAuthentication, )
+    permission_classes = (IsAdminOrReadOnly,)
 
     @action(detail=False, methods=['get'])
     def basic(self, request, **kwargs):
@@ -80,7 +80,7 @@ class PhoneViewSet(viewsets.ModelViewSet):
             serializer = PhoneBasicSerializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
-    @action(detail=True, methods=['POST'])
+    @action(detail=True, methods=['post'])
     def rate_phone(self, request, pk=None):
         phone = Phone.objects.get(id=pk)
         user = request.user
@@ -100,7 +100,7 @@ class PhoneViewSet(viewsets.ModelViewSet):
             response = {'message': 'You need to provide stars'}
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=['PUT'])
+    @action(detail=True, methods=['put'])
     def edit_rating(self, request, pk=None):
         phone = Phone.objects.get(id=pk)
         user = request.user
@@ -118,7 +118,7 @@ class PhoneViewSet(viewsets.ModelViewSet):
             response = {'message': 'No data in request'}
             return Response(response, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['DELETE'])
+    @action(detail=True, methods=['delete'])
     def delete_rating(self, request, pk=None):
         phone = Phone.objects.get(id=pk)
         user = request.user
@@ -145,8 +145,8 @@ class RatingViewSet(viewsets.ModelViewSet):
     ordering_fields = ['date', 'stars']
     ordering = ['-date']
     pagination_class = RatingSetPagination
-    # authentication_classes = (TokenAuthentication, )
-    # permission_classes = (permissions.AllowAny, )
+    authentication_classes = (TokenAuthentication, )
+    permission_classes = (permissions.AllowAny, )
 
     def get_queryset(self):
         phone = self.request.query_params.get('phone', None)
