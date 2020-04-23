@@ -1,30 +1,25 @@
 from django.contrib.auth.models import User
 from rest_framework import viewsets
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.authentication import TokenAuthentication
-from .permissions import IsAdminOrReadOnly
-from .serializers import UserSerializer, PhoneSerializer, PhoneBasicSerializer, ProfileSerializer, RatingSerializer
-from .models import Phone, Profile, Rating
+from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as filters
-from rest_framework.filters import SearchFilter, OrderingFilter
+from django.http import HttpResponseNotAllowed
+from rest_framework import permissions
+from .permissions import IsAdminOrReadOnly, IsAuthorOrReadOnly
+from .serializers import PhoneSerializer, PhoneBasicSerializer, ProfileSerializer, RatingSerializer,  BrandSerializer, \
+    UserSerializer
+from .models import Phone, Profile, Rating, Brand
 
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = UserSerializer
 
-
-# class PhoneImageViewSet(viewsets.ModelViewSet):
-#     queryset = PhoneImage.objects.all()
-#     serializer_class = PhoneImageSerializer
-#
-#
-# class BrandViewSet(viewsets.ModelViewSet):
-#     queryset = Brand.objects.all()
-#     serializer_class = BrandSerializer
 
 class PhoneSetPagination(PageNumberPagination):
     page_size = 50
@@ -71,32 +66,133 @@ class PhoneViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = PhoneFilter
     search_fields = ['^name', '^brand__name']
-    ordering_fields = ['brand__name', 'name', 'year'] #need average_rating and number_of_ratings
+    ordering_fields = ['brand__name', 'name', 'year']
     ordering = ['brand__name', 'name']
     pagination_class = PhoneSetPagination
-    authentication_classes = (TokenAuthentication, )
-    permission_classes = (IsAdminOrReadOnly,)
+    # authentication_classes = (TokenAuthentication, )
+    # permission_classes = (IsAdminOrReadOnly,)
 
-    # get basic information from model Phone
     @action(detail=False, methods=['get'])
     def basic(self, request, **kwargs):
         queryset = Phone.objects.all().order_by('brand__name', 'name')
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
+            serializer = PhoneBasicSerializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-        serializer = PhoneBasicSerializer(queryset, many=True)
 
-        return Response(serializer.data)
+    @action(detail=True, methods=['POST'])
+    def rate_phone(self, request, pk=None):
+        phone = Phone.objects.get(id=pk)
+        user = request.user
+        author = Profile.objects.get(id=user.id)
+        if 'stars' in request.data:
+            stars = request.data['stars']
+            if 'opinion' in request.data:
+                opinion = request.data['opinion']
+                Rating.objects.create(phone=phone, author=author, stars=stars, opinion=opinion)
+                response = {'message': 'Rating created'}
+                return Response(response, status=status.HTTP_200_OK)
+            else:
+                Rating.objects.create(phone=phone, author=author, stars=stars)
+                response = {'message': 'Rating created'}
+                return Response(response, status=status.HTTP_200_OK)
+        else:
+            response = {'message': 'You need to provide stars'}
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
-    def get_queryset(self):
-        return self.queryset.annotate()
+    @action(detail=True, methods=['PUT'])
+    def edit_rating(self, request, pk=None):
+        phone = Phone.objects.get(id=pk)
+        user = request.user
+        author = Profile.objects.get(id=2)
+        if 'stars' and 'opinion' in request.data:
+            stars = request.data['stars']
+            opinion = request.data['opinion']
+            rating = Rating.objects.get(phone=phone.id, author=author.id)
+            rating.opinion = opinion
+            rating.stars = stars
+            rating.save()
+            response = {'message': 'Rating updated'}
+            return Response(response, status=status.HTTP_200_OK)
+        else:
+            response = {'message': 'No data in request'}
+            return Response(response, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['DELETE'])
+    def delete_rating(self, request, pk=None):
+        phone = Phone.objects.get(id=pk)
+        user = request.user
+        author = Profile.objects.get(id=user.id)
+        rating = Rating.objects.get(phone=phone.id, author=author.id)
+        self.perform_destroy(rating)
+        response = {'message': 'Rating deleted'}
+        return Response(response, status=status.HTTP_200_OK)
 
 
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
 
+
+class RatingSetPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+
+
 class RatingViewSet(viewsets.ModelViewSet):
-    queryset = Rating.objects.all()
     serializer_class = RatingSerializer
+    filter_backends = [OrderingFilter]
+    ordering_fields = ['date', 'stars']
+    ordering = ['-date']
+    pagination_class = RatingSetPagination
+    # authentication_classes = (TokenAuthentication, )
+    # permission_classes = (permissions.AllowAny, )
+
+    def get_queryset(self):
+        phone = self.request.query_params.get('phone', None)
+        author = self.request.query_params.get('author', None)
+
+        if phone and not author:
+            return Rating.objects.filter(phone=phone)
+        if author and not phone:
+            return Rating.objects.filter(user=author)
+        else:
+            return Rating.objects.none()
+
+    def update(self, request, *args, **kwargs):
+        response = {'message': 'You cant update rating like that'}
+        return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+    def create(self, request, *args, **kwargs):
+        response = {'message': 'You cant create rating like that'}
+        return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        response = {'message': 'You cant delete rating like that'}
+        return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BrandViewSet(viewsets.ModelViewSet):
+    queryset = Brand.objects.all().order_by('name')
+    serializer_class = BrandSerializer
+    authentication_classes = (TokenAuthentication, )
+    permission_classes = (IsAdminOrReadOnly,)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.name = request.data['name']
+        instance.logo = request.data['logo']
+        instance.save()
+        response = {'message': 'Brand updated'}
+        return Response(response, status=status.HTTP_200_OK)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        number_of_phones = instance.number_of_phones()
+        if number_of_phones == 0:
+            self.perform_destroy(instance)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            return HttpResponseNotAllowed("Method not allowed")
+
+

@@ -20,10 +20,10 @@ class Profile(models.Model):
     favourite_phone = models.CharField(max_length=20, null=True, blank=True)
     address = models.CharField(max_length=50, null=True, blank=True)
     city = models.CharField(max_length=20, null=True, blank=True)
-    country = CountryField()
+    country = CountryField(default="PL")
 
     def number_of_ratings(self):
-        ratings = Rating.objects.filter(user=self.user)
+        ratings = Rating.objects.filter(author=self)
         return len(ratings)
 
     def __str__(self):
@@ -41,8 +41,9 @@ def save_user_profile(sender, instance, **kwargs):
     instance.profile.save()
 
 
-class PhoneImage(models.Model):
-    photo = models.ImageField(null=True, blank=True, upload_to='phone images')
+@receiver(post_save, sender=User)
+def delete_user_profile(sender, instance, **kwargs):
+    instance.profile.delete()
 
 
 class Brand(models.Model):
@@ -59,8 +60,7 @@ class Brand(models.Model):
 
 class Phone(models.Model):
     name = models.CharField(max_length=30)
-    main_photo = models.ImageField(null=True, blank=True, upload_to='phone images')
-    phone_images = models.ManyToManyField(PhoneImage)
+    photo = models.ImageField(null=True, blank=True, upload_to='phone images')
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='phones')
     year = models.IntegerField(null=True, blank=True)
     display_diagonal = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
@@ -148,14 +148,14 @@ class Phone(models.Model):
 
 class Rating(models.Model):
     phone = models.ForeignKey(Phone, on_delete=models.CASCADE, related_name='ratings')
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    author = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='ratings')
     stars = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     opinion = models.TextField(null=True, blank=True, max_length=500)
     date = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['user', 'phone']
-        index_together = ['user', 'phone']
+        unique_together = ['author', 'phone']
+        index_together = ['author', 'phone']
 
 
 
