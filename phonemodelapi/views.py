@@ -10,7 +10,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as filters
 from django.http import HttpResponseNotAllowed
 from rest_framework import permissions
-from .permissions import IsAdminOrReadOnly
+from .permissions import IsAdminOrReadOnly, PhonePermission, ProfilePermission
 from .serializers import PhoneSerializer, PhoneBasicSerializer, ProfileSerializer, RatingSerializer,  BrandSerializer, \
     UserSerializer
 from .models import Phone, Profile, Rating, Brand
@@ -70,7 +70,7 @@ class PhoneViewSet(viewsets.ModelViewSet):
     ordering = ['brand__name', 'name']
     pagination_class = PhoneSetPagination
     authentication_classes = (TokenAuthentication, )
-    permission_classes = (IsAdminOrReadOnly,)
+    permission_classes = (PhonePermission,)
 
     @action(detail=False, methods=['get'])
     def basic(self, request, **kwargs):
@@ -83,19 +83,22 @@ class PhoneViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def rate_phone(self, request, pk=None):
         phone = Phone.objects.get(id=pk)
-        user = request.user
-        author = Profile.objects.get(id=user.id)
+        author = Profile.objects.get(id=request.user.id)
         if 'stars' in request.data:
-            stars = request.data['stars']
-            if 'opinion' in request.data:
-                opinion = request.data['opinion']
-                Rating.objects.create(phone=phone, author=author, stars=stars, opinion=opinion)
-                response = {'message': 'Rating created'}
-                return Response(response, status=status.HTTP_200_OK)
+            stars = int(request.data['stars'])
+            if stars in range(1, 6):
+                if 'opinion' in request.data:
+                    opinion = request.data['opinion']
+                    Rating.objects.create(phone=phone, author=author, stars=stars, opinion=opinion)
+                    response = {'message': 'Rating created'}
+                    return Response(response, status=status.HTTP_200_OK)
+                else:
+                    Rating.objects.create(phone=phone, author=author, stars=stars)
+                    response = {'message': 'Rating created'}
+                    return Response(response, status=status.HTTP_200_OK)
             else:
-                Rating.objects.create(phone=phone, author=author, stars=stars)
-                response = {'message': 'Rating created'}
-                return Response(response, status=status.HTTP_200_OK)
+                response = {'message': 'You need provide value from 1 to 5'}
+                return Response(response, status=status.HTTP_400_BAD_REQUEST)
         else:
             response = {'message': 'You need to provide stars'}
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
@@ -103,40 +106,66 @@ class PhoneViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['put'])
     def edit_rating(self, request, pk=None):
         phone = Phone.objects.get(id=pk)
-        user = request.user
-        author = Profile.objects.get(id=2)
-        if 'stars' and 'opinion' in request.data:
-            stars = request.data['stars']
+        author = Profile.objects.get(id=request.user.id)
+        if 'stars' in request.data:
+            stars = int(request.data['stars'])
             opinion = request.data['opinion']
-            rating = Rating.objects.get(phone=phone.id, author=author.id)
-            rating.opinion = opinion
-            rating.stars = stars
-            rating.save()
-            response = {'message': 'Rating updated'}
-            return Response(response, status=status.HTTP_200_OK)
+            if stars in range(1, 6):
+                rating = Rating.objects.get(phone=phone.id, author=author.id)
+                rating.opinion = opinion
+                rating.stars = stars
+                rating.save()
+                response = {'message': 'Rating updated'}
+                return Response(response, status=status.HTTP_200_OK)
+            else:
+                response = {'message': 'You need provide value from 1 to 5'}
+                return Response(response, status=status.HTTP_400_BAD_REQUEST)
         else:
             response = {'message': 'No data in request'}
-            return Response(response, status=status.HTTP_200_OK)
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['delete'])
     def delete_rating(self, request, pk=None):
         phone = Phone.objects.get(id=pk)
-        user = request.user
-        author = Profile.objects.get(id=user.id)
+        author = Profile.objects.get(id=request.user.id)
         rating = Rating.objects.get(phone=phone.id, author=author.id)
         self.perform_destroy(rating)
         response = {'message': 'Rating deleted'}
         return Response(response, status=status.HTTP_200_OK)
 
 
+class ProfileandRatingSetPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+
+
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
+    filter_backends = [OrderingFilter]
+    ordering_fields = ['user__date_joined']
+    ordering = ['-user__date_joined']
+    pagination_class = ProfileandRatingSetPagination
+    authentication_classes = (TokenAuthentication, )
+    permission_classes = (ProfilePermission, )
 
-
-class RatingSetPagination(PageNumberPagination):
-    page_size = 20
-    page_size_query_param = 'page_size'
+    def update(self, request, pk=None, *args, **kwargs):
+        profile = self.get_object()
+        user = profile.user
+        user.username = request.data['username']
+        user.email = request.data['email']
+        user.first_name = request.data['first_name']
+        user.last_name = request.data['last_name']
+        profile.photo = request.data['photo']
+        profile.favourite_brand = request.data['favourite_brand']
+        profile.favourite_phone = request.data['favourite_phone']
+        profile.address = request.data['address']
+        profile.city = request.data['city']
+        profile.country = request.data['country']
+        user.save()
+        profile.save()
+        response = {'message': 'Profile updated'}
+        return Response(response, status=status.HTTP_200_OK)
 
 
 class RatingViewSet(viewsets.ModelViewSet):
@@ -144,9 +173,9 @@ class RatingViewSet(viewsets.ModelViewSet):
     filter_backends = [OrderingFilter]
     ordering_fields = ['date', 'stars']
     ordering = ['-date']
-    pagination_class = RatingSetPagination
+    pagination_class = ProfileandRatingSetPagination
     authentication_classes = (TokenAuthentication, )
-    permission_classes = (permissions.AllowAny, )
+    permission_classes = (IsAdminOrReadOnly, )
 
     def get_queryset(self):
         phone = self.request.query_params.get('phone', None)
@@ -159,17 +188,32 @@ class RatingViewSet(viewsets.ModelViewSet):
         else:
             return Rating.objects.none()
 
-    def update(self, request, *args, **kwargs):
-        response = {'message': 'You cant update rating like that'}
-        return Response(response, status=status.HTTP_400_BAD_REQUEST)
-
     def create(self, request, *args, **kwargs):
         response = {'message': 'You cant create rating like that'}
+        return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        response = {'message': 'You cant update rating like that'}
         return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
         response = {'message': 'You cant delete rating like that'}
         return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['put'])
+    def moderate_user_opinion(self, request, pk=None):
+        rating = Rating.objects.get(id=pk)
+        if 'opinion' in request.data:
+            opinion = request.data['opinion']
+            if opinion == "":
+                opinion = "deleted by admin"
+            rating.opinion = opinion
+            rating.save()
+            response = {'message': 'Rating updated'}
+            return Response(response, status=status.HTTP_200_OK)
+        else:
+            response = {'message': 'No data in request'}
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
 
 class BrandViewSet(viewsets.ModelViewSet):
@@ -194,5 +238,6 @@ class BrandViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
             return HttpResponseNotAllowed("Method not allowed")
+
 
 

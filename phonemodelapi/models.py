@@ -15,7 +15,7 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, unique=True)
-    photo = models.ImageField(null=True, blank=True, upload_to='photos of users')
+    photo = models.ImageField(null=True, blank=True, upload_to='photos_of_users')
     favourite_brand = models.CharField(max_length=15, null=True, blank=True)
     favourite_phone = models.CharField(max_length=20, null=True, blank=True)
     address = models.CharField(max_length=50, null=True, blank=True)
@@ -33,7 +33,7 @@ class Profile(models.Model):
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
-        Profile.objects.create(user=instance)
+        Profile.objects.create(user=instance, country="PL")
 
 
 @receiver(post_save, sender=User)
@@ -41,14 +41,9 @@ def save_user_profile(sender, instance, **kwargs):
     instance.profile.save()
 
 
-@receiver(post_save, sender=User)
-def delete_user_profile(sender, instance, **kwargs):
-    instance.profile.delete()
-
-
 class Brand(models.Model):
     name = models.CharField(max_length=20)
-    logo = models.ImageField(null=True, blank=True, upload_to='brand logos')
+    logo = models.ImageField(null=True, blank=True, upload_to='brand_logos')
 
     def __str__(self):
         return self.name
@@ -60,7 +55,7 @@ class Brand(models.Model):
 
 class Phone(models.Model):
     name = models.CharField(max_length=30)
-    photo = models.ImageField(null=True, blank=True, upload_to='phone images')
+    photo = models.ImageField(null=True, blank=True, upload_to='phone_images')
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='phones')
     year = models.IntegerField(null=True, blank=True)
     display_diagonal = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
@@ -86,7 +81,7 @@ class Phone(models.Model):
     SIM_SIZE = [
         ('miniSIM', 'miniSIM'),
         ('microSIM', 'microSIM'),
-        ('NanoSIM', 'nanoSIM')
+        ('nanoSIM', 'nanoSIM')
     ]
     sim_size = models.CharField(choices=SIM_SIZE, max_length=20)
     dual_sim = models.BooleanField()
@@ -128,9 +123,9 @@ class Phone(models.Model):
     additional_information = models.TextField(null=True, blank=True, max_length=500)
 
     def __str__(self):
-        return self.name_with_brand()
+        return self.full_name()
 
-    def name_with_brand(self):
+    def full_name(self):
         return f"{self.brand.name} {self.name}"
 
     def number_of_ratings(self):

@@ -25,18 +25,19 @@ class PhoneSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Phone
-        fields = ['id', 'name', 'brand', 'name_with_brand', 'year', 'photo', 'display_diagonal', 'operating_system',
+        fields = ['id', 'name', 'brand', 'full_name', 'year', 'photo', 'display_diagonal', 'operating_system',
                   'processor_clock', 'processor_cores', 'internal_memory', 'ram_memory', 'memory_card_slot',
                   'battery_capacity', 'battery_removable', 'quick_battery_charging', 'wireless_battery_charging',
                   'back_camera_resolution', 'back_camera_amount', 'front_camera_resolution', 'sim_size', 'dual_sim',
                   'e_sim', 'audio_jack', 'bluetooth_version', 'fingerprint', 'nfc', 'usb_type',
                   'additional_information', 'ratings', 'number_of_ratings', 'average_rating']
+        read_only_fields = ['full_name', 'ratings', 'number_of_ratings', 'average_rating']
 
 
 class PhoneBasicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Phone
-        fields = ['id', 'name_with_brand', 'photo',  'average_rating']
+        fields = ['id', 'full_name', 'photo',  'average_rating']
 
 
 class ProfileSerializer(serializers.ModelSerializer):
